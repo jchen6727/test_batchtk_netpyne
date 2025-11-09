@@ -16,8 +16,8 @@ slurm_args = {
     'mem': '4G',
     'partition': 'shared',
     'email': 'jchen.6727@gmail.com',
-    'custom': '',
-    'comand': 'python single_opt.py',
+    'custom': 'source ~/.bashrc',
+    'comand': 'python rosenbrock.py',
 }
 
 results = optuna_search(
@@ -27,10 +27,10 @@ results = optuna_search(
     metrics={'fx': 'minimize'},
     num_trials=12, num_workers=3,
     dispatcher_constructor=Dispatcher,
-    dispatcher_kwargs = {'connection': TOTPConnection('expanse0', secret_key )},
+    dispatcher_kwargs = {'connection': TOTPConnection('expanse0', secret_key)},
     submit_constructor=Submit,
     submit_kwargs=slurm_args, # normal run
     interval=10,
-    project_path='.',
-    output_path=expand_path('./optimization', create_dirs=True),
+    project_dir='/home/jchen12/dev/test_batchtk_netpyne/sim_scripts',
+    output_dir='/home/jchen12/dev/test_batchtk_netpyne/output',
 )

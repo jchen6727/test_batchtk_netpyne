@@ -11,15 +11,14 @@ from pymoo.optimize import minimize
 from pymoo.core.problem import Problem
 
 class TrialProblem(Problem):
-
-    def __init__(self, trial, n_var, n_obj, n_constr, xl, xu):
+    def __init__(self, label, n_var, n_obj, n_constr, xl, xu):
         super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=xl, xu=xu)
-        self.trial = trial
-
+        self.label = label
     def _evaluate(self, x, out, *args, **kwargs):
+
         results = trial(
             config={f'x{i}': x[i] for i in range(self.n_var)},
-            label='single_trial',
+            label=self.label,
             tid=0,
             dispatcher_constructor=constructors.LocalDispatcher,
             project_dir='.',
@@ -30,7 +29,6 @@ class TrialProblem(Problem):
         )
         out["F"] = results['objective']
 
-problem = get_problem("g1")
 
 algorithm = GA(
     pop_size=33,

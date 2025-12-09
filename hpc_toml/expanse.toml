@@ -1,0 +1,27 @@
+submit_template = "/cm/shared/apps/slurm/current/bin/sbatch {output_path}.sh"
+
+script_template = """\
+#!/bin/bash
+#SBATCH --job-name={label}
+#SBATCH -A csd403
+#SBATCH -t 00:30:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+#SBATCH --partition=shared
+#SBATCH -o {stdout}
+#SBATCH -e {stderr}
+#SBATCH --mail-user=jchen.6727@gmail.com
+#SBATCH --mail-type=end
+#SBATCH --export=ALL
+export JOBID=$SLURM_JOB_ID
+{handles}
+{env}
+source ~/.bashrc
+conda activate netpyne
+
+cd {project_dir}
+python rosenbrock.py
+"""
+

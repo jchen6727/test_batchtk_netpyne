@@ -1,3 +1,5 @@
+import uuid
+
 from pymoo.algorithms.soo.nonconvex.ga import GA
 
 from batchtk.runtk.trial import trial
@@ -11,15 +13,32 @@ from pymoo.optimize import minimize
 from pymoo.core.problem import Problem
 
 class TrialProblem(Problem):
-    def __init__(self, label, n_var, n_obj, n_constr, xl, xu):
+    def __init__(self, label: str, params: dict[str, tuple[float, float]], n_obj, n_constr
+
+    dispatcher_constructor: callable = None, project_dir: str = None,
+    output_dir: str = None, submit_constructor: callable = None,
+    storage_dir: str = None, dispatcher_kwargs: Optional[dict] = None,
+    submit_kwargs: Optional[dict] = None, interval: Optional[int] = 60,
+    storage_constructor: Optional[callable] = constructors.SQLiteStorage,
+    storage_kwargs: Optional[dict] = None,
+    log_constructor: Optional[callable] = constructors.BatchtkLogger,
+    log_kwargs: Optional[dict] = None, report: Optional[list] = ('path', 'config', 'data'),
+    cleanup: Optional[bool | list | tuple] = (runtk.SGLOUT, runtk.MSGOUT),
+    check_storage: Optional[bool] = True, **kwargs) -> pandas.DataFrame:
+
+
+                 ):
+        n_var = len(params)
+        self.params, xb = zip(*params)
+        xl, xu = zip(*xb)
         super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=xl, xu=xu)
         self.label = label
     def _evaluate(self, x, out, *args, **kwargs):
-
+        tid = uuid.uuid4()
         results = trial(
             config={f'x{i}': x[i] for i in range(self.n_var)},
             label=self.label,
-            tid=0,
+            tid=tid,
             dispatcher_constructor=constructors.LocalDispatcher,
             project_dir='.',
             output_dir='./output',

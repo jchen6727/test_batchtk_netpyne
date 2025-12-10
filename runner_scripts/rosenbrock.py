@@ -8,6 +8,10 @@ The rosenbrock minimum is at (A, A**2), where rosenbrock(A, A**2) = 0
 """
 A = 1
 
+PATHSTR = '_batchtk_path_pointer'
+LABELSTR = '_batchtk_label_pointer'
+
+
 print("starting process: {}".format(os.getpid()))
 
 def rosenbrock(x0, x1):
@@ -20,8 +24,8 @@ mappings.update(runner.get_mappings())
 
 inputs = {key: mappings[key] for key in ('x0', 'x1')}
 
-if 'path' in mappings and 'label' in mappings:
-    file = "{}/{}.txt".format(mappings['path'], mappings['label'])
+if PATHSTR in mappings and LABELSTR in mappings:
+    file = "{}/{}.txt".format(mappings[PATHSTR], mappings[LABELSTR])
     mappings['file'] = file
 
 fx = rosenbrock(mappings['x0'], mappings['x1'])
@@ -35,7 +39,6 @@ with get_runner() as runner:
     runner.send(results)
 
 if 'file' in mappings:
-    file = "{}/{}.txt".format(mappings['path'], mappings['label'])
     print("writing results to file: {}".format(file))
     with open(file, 'w') as fptr:
         fptr.write(results)

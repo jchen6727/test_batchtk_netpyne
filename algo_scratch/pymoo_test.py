@@ -32,7 +32,7 @@ class TrialProblem(Problem, Trial):
         n_var = len(params)
         n_obj = len(metrics)
         self.metrics = sorted(metrics)
-        self.params, xb = zip(*params)
+        self.params, xb = zip(*params.items())
         xl, xu = zip(*xb)
         super().__init__(n_var=n_var, n_obj=n_obj, n_ieq_constr=n_ieq_constr,
                          n_eq_constr=n_eq_constr, xl=xl, xu=xu)
@@ -49,7 +49,7 @@ class TrialProblem(Problem, Trial):
         self.label = label
     def _evaluate(self, x, out, *args, **kwargs):
         config = {param: x for param, x in zip(self.params, x)}
-        tid = self.compute_id_from_dict(self.label, config)
+        tid = self.compute_id_from_args(self.label, config)
         results = self.run_trial(
             config=config,
             label=self.label,
@@ -62,7 +62,7 @@ class TrialProblem(Problem, Trial):
 dispatcher_constructor = constructors.LocalDispatcher
 project_dir = expand_path('../runner_scripts', create_dirs=True)
 output_dir = expand_path('./output', create_dirs=True)
-submit_constructor = constructors.LocalSubmit
+submit_constructor = constructors.SHSubmit
 storage_dir = expand_path('./output', create_dirs=True)
 submit_kwargs = {'command': 'python rosenbrock.py'}
 storage_constructor = constructors.SQLiteStorage
@@ -70,8 +70,8 @@ log_constructor = constructors.BatchtkLogger
 
 problem = TrialProblem(
     label='rosenbrock',
-    params={'x0': (-2.048, 2.048), 'x1': (-2.048, 2.048)},
-    metrics={'obj': 'minimize'},
+    params={'x0': (-3, 3), 'x1': (-3, 3)},
+    metrics={'fx': 'minimize'},
     dispatcher_constructor=dispatcher_constructor,
     project_dir=project_dir,
     output_dir=output_dir,
@@ -84,7 +84,7 @@ problem = TrialProblem(
 
 
 algorithm = GA(
-    pop_size=33,
+    pop_size=5,
     eliminate_duplicates=True)
 
 res = minimize(problem,

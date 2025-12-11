@@ -1,21 +1,18 @@
-import uuid
-
 from pymoo.algorithms.soo.nonconvex.ga import GA
+from pymoo.parallelization.starmap import StarmapParallelization
+from pymoo.optimize import minimize
+from pymoo.core.problem import Problem, ElementwiseProblem
+from pymoo.termination import get_termination
+from pymoo.termination.collection import TerminationCollection
 
-from batchtk.runtk.trial import trial
-
+from batchtk.utils import expand_path
 from batchtk import runtk
 from batchtk.runtk import constructors
-from batchtk.runtk.trial import LABEL_POINTER, DIR_POINTER
 from batchtk.algos import Trial
 
-from pymoo.optimize import minimize
+import multiprocessing
 
-from pymoo.core.problem import Problem
-import numpy
-from batchtk.utils import expand_path
-
-class TrialProblem(Problem, Trial):
+class TrialProblem(ElementwiseProblem, Trial):
     def __init__(self, label: str, params: dict[str, tuple[float, float]],
                  metrics: dict, n_ieq_constr = 0, n_eq_constr = 0,
                  dispatcher_constructor = None, project_dir = None,
@@ -27,7 +24,7 @@ class TrialProblem(Problem, Trial):
                  log_constructor = constructors.BatchtkLogger,
                  log_kwargs = None, report = ('path', 'config', 'data'),
                  cleanup = (runtk.SGLOUT, runtk.MSGOUT),
-                 check_storage = True,
+                 check_storage = True, **kwargs
                  ):
         n_var = len(params)
         n_obj = len(metrics)
@@ -35,7 +32,7 @@ class TrialProblem(Problem, Trial):
         self.params, xb = zip(*params.items())
         xl, xu = zip(*xb)
         super().__init__(n_var=n_var, n_obj=n_obj, n_ieq_constr=n_ieq_constr,
-                         n_eq_constr=n_eq_constr, xl=xl, xu=xu)
+                         n_eq_constr=n_eq_constr, xl=xl, xu=xu, **kwargs)
         self._fixed_trial_args = dict()
         self.set_fixed_trial_args(
             dispatcher_constructor=dispatcher_constructor, project_dir=project_dir,
@@ -57,7 +54,9 @@ class TrialProblem(Problem, Trial):
         )
         out["F"] = [results[metric] for metric in self.metrics]
 
-
+termination = TerminationCollection(
+    get_termination("n_gen", 3),
+)
 
 dispatcher_constructor = constructors.LocalDispatcher
 project_dir = expand_path('../runner_scripts', create_dirs=True)
@@ -68,31 +67,37 @@ submit_kwargs = {'command': 'python rosenbrock.py'}
 storage_constructor = constructors.SQLiteStorage
 log_constructor = constructors.BatchtkLogger
 
-problem = TrialProblem(
-    label='rosenbrock',
-    params={'x0': (-3, 3), 'x1': (-3, 3)},
-    metrics={'fx': 'minimize'},
-    dispatcher_constructor=dispatcher_constructor,
-    project_dir=project_dir,
-    output_dir=output_dir,
-    submit_constructor=submit_constructor,
-    storage_dir=storage_dir,
-    submit_kwargs=submit_kwargs,
-    storage_constructor=storage_constructor,
-    log_constructor=log_constructor,
-)
+workers = 5
+if __name__ == '__main__':
+    pool = multiprocessing.Pool(workers)
+    runner = StarmapParallelization(pool.starmap)
+    problem = TrialProblem(
+        label='rosenbrock',
+        params={'x0': (-3, 3), 'x1': (-3, 3)},
+        metrics={'fx': 'minimize'},
+        dispatcher_constructor=dispatcher_constructor,
+        project_dir=project_dir,
+        output_dir=output_dir,
+        submit_constructor=submit_constructor,
+        storage_dir=storage_dir,
+        submit_kwargs=submit_kwargs,
+        storage_constructor=storage_constructor,
+        log_constructor=log_constructor,
+        elementwise_runner=runner,
+    )
 
 
-algorithm = GA(
-    pop_size=5,
-    eliminate_duplicates=True)
+    algorithm = GA(
+        pop_size=workers,
+        eliminate_duplicates=True)
 
-res = minimize(problem,
-               algorithm,
-               seed=1,
-               verbose=False)
+    res = minimize(problem,
+                   algorithm,
+                   termination,
+                   seed=1,
+                   verbose=False)
 
-print("Best solution found: \nX = %s\nF = %s" % (res.X, res.F))
+    print("Best solution found: \nX = %s\nF = %s" % (res.X, res.F))
 
 """
 results with pop_size = 100
@@ -118,5 +123,35 @@ class ElementwiseEvaluationFunction:
         out = dict()
         self.problem._evaluate(x, out, *self.args, **self.kwargs)
         return out
+
+
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.optimize import minimize
+from pymoo.algorithms.so_genetic_algorithm import GA
+from multiprocessing import Pool
+
+class MyElementwiseProblem(ElementwiseProblem):
+    def __init__(self, **kwargs):
+        super().__init__(n_var=2, n_obj=1, n_ieq_constr=0, xl=-5, xu=5, **kwargs)
+
+    def _evaluate(self, x, out, *args, **kwargs):
+        # Simulate a computationally intensive evaluation
+        import time
+        time.sleep(0.01) 
+        out["F"] = (x**2).sum()
+
+# Create a multiprocessing Pool for parallel execution
+with Pool(processes=4) as pool:
+    algorithm = GA()
+    problem = MyElementwiseProblem()
+    
+    # Pass the pool's starmap method for parallelization
+    res = minimize(problem, algorithm, seed=1, verbose=True, callback=None,
+                   eliminate_duplicates=True, save_history=False,
+                   starmap=pool.starmap)
+
+print("Optimization finished.")
+
+
 
 """
